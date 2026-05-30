@@ -1,0 +1,36 @@
+# ====================================================================
+# Dependency untuk project deteksi_barang (YOLOv8)
+# ====================================================================
+# Install:  pip install -r requirements.txt
+#
+# CATATAN GPU:
+#   Baris torch/torchvision di bawah adalah versi CPU/umum dari PyPI.
+#   Jika punya GPU NVIDIA + CUDA, install torch sesuai CUDA Anda dari
+#   https://pytorch.org/get-started/locally/  (mis. untuk CUDA 12.1:)
+#     pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+#   ultralytics akan otomatis memakai GPU jika torch versi CUDA terpasang.
+# ====================================================================
+
+# Core: YOLOv8 (sudah membawa banyak util training/val/predict)
+ultralytics>=8.2.0,<9.0.0
+
+# Deep learning backend
+torch>=2.1.0
+torchvision>=0.16.0
+
+# Computer vision (webcam, video, gambar, overlay)
+opencv-python>=4.8.0
+
+# Konfigurasi data.yaml
+pyyaml>=6.0
+
+# Numerik & plotting (confusion matrix, kurva metrik)
+numpy>=1.24.0
+matplotlib>=3.7.0
+
+# Util tambahan yang umum dipakai ekosistem ultralytics
+pandas>=2.0.0          # parsing results.csv / analisis metrik
+seaborn>=0.12.0        # plot confusion matrix lebih rapi
+tqdm>=4.65.0           # progress bar
+Pillow>=10.0.0         # I/O gambar
+scipy>=1.10.0          # operasi numerik pendukung

@@ -1,0 +1,79 @@
+# ========================
+# Virtual Environment
+# ========================
+OBJECT_DETECTION/
+venv/
+env/
+.venv/
+
+# ========================
+# Python
+# ========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ========================
+# Model Weights (besar)
+# ========================
+*.pt
+*.pth
+*.onnx
+*.engine
+*.torchscript
+
+# ========================
+# Hasil Training & Prediksi
+# ========================
+runs/
+
+# ========================
+# Dataset — gambar di-exclude, label tetap ditrack
+# ========================
+datasets/**/*.cache
+datasets/**/*.cache.npy
+datasets/**/*.jpg
+datasets/**/*.jpeg
+datasets/**/*.png
+datasets/**/*.bmp
+datasets/**/*.webp
+
+# ========================
+# Output Laporan
+# ========================
+results_summary.txt
+evaluation_report.txt
+
+# ========================
+# data.yaml berisi path absolut
+# (jalankan fix_yaml.py setelah clone)
+# ========================
+datasets/data.yaml
+
+# ========================
+# Jupyter & IDE
+# ========================
+.ipynb_checkpoints/
+*.ipynb
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ========================
+# Sistem Operasi
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+# Log & Temp
+# ========================
+*.log
+*.tmp

@@ -1,0 +1,25 @@
+  Catatan environment (perlu Anda siapkan sebelum training)
+
+  Saya menemukan beberapa hal saat verifikasi:
+
+  1. Perintahnya python3, bukan python di sistem Anda (Python 3.14.4).
+  2. Python sistem "externally-managed" (PEP 668) — pip install langsung akan ditolak. Wajib pakai virtual environment:
+
+  cd /home/funcsmile/Desktop/SandBox/Kuliah/deteksi_barang
+  python3 -m venv venv
+  source venv/bin/activate
+  pip install -r requirements.txt
+
+  3. Python 3.14 cukup baru — ada kemungkinan wheel torch/ultralytics belum tersedia untuk versi ini. Jika pip install gagal, pertimbangkan pakai Python 3.11/3.12 (mis. via conda atau pyenv).
+  4. GPU: baris torch di requirements adalah versi umum. Kalau punya GPU NVIDIA, install torch versi CUDA dulu (instruksi ada di komentar requirements.txt) — kalau tidak, training jalan di CPU dan akan sangat lambat untuk yolov8m
+  + 150 epoch.
+
+  Urutan eksekusi (setelah venv aktif)
+
+  python fix_yaml.py        # sudah saya jalankan, aman diulang
+  python check_dataset.py   # sudah saya jalankan
+  python train.py           # JANGAN jalankan sebelum laptop siap
+  python evaluate.py
+  python predict.py --mode webcam
+
+  train.py sudah punya fallback batch otomatis (16 → 8 → 4) saat CUDA OOM, jadi lebih kecil risiko crash dari sisi GPU — tapi tetap berat untuk laptop. Silakan siapkan dulu sesuai kenyamanan Anda.

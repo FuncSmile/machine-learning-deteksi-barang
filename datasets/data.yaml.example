@@ -1,0 +1,41 @@
+# Template data.yaml — salin ke data.yaml lalu jalankan fix_yaml.py
+# untuk mengisi path absolut sesuai mesin Anda.
+train: /PATH/TO/deteksi_barang/datasets/train/images
+val: /PATH/TO/deteksi_barang/datasets/valid/images
+test: /PATH/TO/deteksi_barang/datasets/test/images
+
+nc: 26
+names:
+- HP
+- asbak
+- bangku
+- botol
+- buku
+- bungkus rokok
+- dompet
+- galon
+- gelas
+- gunting
+- jam tangan
+- kaca mata
+- kalkulator
+- korek
+- kunci
+- lampu
+- laptop
+- mouse
+- pulpen
+- ransel
+- sapu
+- sendok
+- solasi
+- spidol
+- steples
+- tas
+
+roboflow:
+  workspace: muhamads-workspace-o5w3d
+  project: deteksi-barang-qhjji
+  version: 2
+  license: Private
+  url: https://app.roboflow.com/muhamads-workspace-o5w3d/deteksi-barang-qhjji/2
