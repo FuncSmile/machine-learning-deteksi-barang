@@ -36,7 +36,14 @@ import sys
 import datetime
 
 # === KONFIGURASI PATH DASAR ===
-BASE_DIR = Path("/home/funcsmile/Desktop/SandBox/Kuliah/deteksi_barang")
+def _resolve_base_dir() -> Path:
+    """Deteksi BASE_DIR secara dinamis: coba cwd dulu, fallback ke lokasi script."""
+    cwd = Path.cwd()
+    if (cwd / "datasets" / "data.yaml").exists():
+        return cwd
+    return Path(__file__).resolve().parent
+
+BASE_DIR = _resolve_base_dir()
 DATASET_DIR = BASE_DIR / "datasets"
 DATA_YAML = DATASET_DIR / "data.yaml"
 EDA_DIR = BASE_DIR / "runs" / "eda"

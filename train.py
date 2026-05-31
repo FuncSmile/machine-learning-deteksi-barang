@@ -39,6 +39,8 @@ TRAIN_CONFIG = {
     "lr0": 0.001,
     "lrf": 0.01,
     "warmup_epochs": 5,
+    # Kurangi workers agar RAM dataloader tidak meledak di laptop
+    "cache": False,
     # --- Augmentasi ---
     "mosaic": 1.0,
     "mixup": 0.1,
@@ -52,7 +54,7 @@ TRAIN_CONFIG = {
     "fliplr": 0.5,
     "flipud": 0.0,
     # --- Sistem ---
-    "workers": 4,
+    "workers": 2,   # 4 → 2: kurangi proses dataloader di RAM
     "pretrained": True,
     "val": True,
     "save_period": 10,
