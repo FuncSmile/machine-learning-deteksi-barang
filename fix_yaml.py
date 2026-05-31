@@ -11,14 +11,27 @@ Solusi: tulis ulang field `train`, `val`, dan `test` menjadi absolute path
 yang menunjuk ke folder datasets/ di dalam working directory ini.
 
 Script ini idempotent: aman dijalankan berkali-kali.
+
+Deteksi BASE_DIR (otomatis, tanpa flag):
+  1. Jika datasets/data.yaml ditemukan di current working directory → pakai cwd.
+  2. Jika tidak, gunakan direktori tempat file script ini berada sebagai fallback.
 """
 
 from pathlib import Path
 import yaml
 
+
+def _resolve_base_dir() -> Path:
+    """Tentukan BASE_DIR secara dinamis berdasarkan lokasi pemanggilan script."""
+    cwd = Path.cwd()
+    if (cwd / "datasets" / "data.yaml").exists():
+        return cwd
+    # Fallback: direktori tempat fix_yaml.py berada
+    return Path(__file__).resolve().parent
+
+
 # === KONFIGURASI PATH DASAR ===
-# BASE_DIR = direktori tempat file script ini berada (working directory project)
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = _resolve_base_dir()
 DATASETS_DIR = BASE_DIR / "datasets"
 DATA_YAML = DATASETS_DIR / "data.yaml"
 
@@ -32,6 +45,7 @@ def fix_yaml() -> bool:
     print("=" * 70)
     print("FIX DATA.YAML  ->  mengubah path relatif menjadi absolute")
     print("=" * 70)
+    print(f"[INFO] BASE_DIR terdeteksi: {BASE_DIR}")
 
     # --- Validasi keberadaan file & folder ---
     if not DATA_YAML.exists():
