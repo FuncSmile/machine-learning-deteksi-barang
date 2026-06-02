@@ -1,12 +1,14 @@
 """
 predict.py
 ----------
-Inference YOLOv8 untuk webcam real-time, file video, atau gambar.
+Inference YOLOv8 untuk webcam real-time, file video, gambar, atau IP webcam HP.
 
 Mode:
-  --mode webcam              : ambil dari kamera (default index 0)
+  --mode webcam              : ambil dari kamera lokal (default index 0)
   --mode video --source x.mp4: proses file video, simpan ke runs/predict/
   --mode image --source x.jpg: proses satu gambar, simpan ke runs/predict/
+  --mode ip --ip 192.168.x.x : sambung ke IP webcam HP (URL dibentuk otomatis)
+  --mode ip --source URL_PENUH: sambung dengan URL stream kustom
 
 Fitur overlay:
   - Bounding box + label + confidence score.
@@ -14,24 +16,33 @@ Fitur overlay:
   - Jumlah objek terdeteksi per class di pojok KANAN ATAS.
 
 Kontrol:
-  - Tekan 'q' untuk keluar (mode webcam / video).
+  - Tekan 'q' untuk keluar (mode webcam / video / ip).
 
 Contoh:
   python predict.py --mode webcam
   python predict.py --mode webcam --camera 1
   python predict.py --mode video --source datasets/test/sample.mp4
   python predict.py --mode image --source datasets/test/images/contoh.jpg
+  python predict.py --mode ip --ip 192.168.1.5
+  python predict.py --mode ip --ip 192.168.1.5 --port 8080
+  python predict.py --mode ip --source http://192.168.1.5:8080/video
+
+Aplikasi IP Webcam yang didukung (Android):
+  - IP Webcam (Pavel Khlebovich) : http://IP:8080/video
+  - DroidCam                     : http://IP:4747/video
+  - Alfred / EpocCam             : gunakan --source URL_PENUH dari aplikasinya
 """
 
 from pathlib import Path
 from collections import Counter
 import argparse
+import threading
 import time
 import sys
 
 # === KONFIGURASI PATH DASAR ===
 BASE_DIR = Path(__file__).resolve().parent
-BEST_MODEL = BASE_DIR / "runs" / "train" / "deteksi_barang_v1" / "weights" / "best.pt"
+BEST_MODEL = BASE_DIR / "runs" / "deteksi-barang-yolov8s" / "weights" / "best.pt"
 PREDICT_DIR = BASE_DIR / "runs" / "predict"
 
 # === THRESHOLD INFERENCE ===
@@ -43,6 +54,53 @@ BOX_COLOR = (0, 200, 0)        # hijau (BGR)
 TEXT_COLOR = (255, 255, 255)   # putih
 BG_COLOR = (0, 0, 0)           # latar teks hitam
 FPS_COLOR = (0, 255, 255)      # kuning
+
+
+class _ThreadedCapture:
+    """
+    Baca frame stream jaringan di thread terpisah; simpan hanya frame terbaru.
+    Mencegah penumpukan buffer & blocking jaringan yang menyebabkan FPS drop
+    pada IP webcam — loop inferensi selalu mendapat frame paling baru secara instan.
+    """
+    def __init__(self, cap):
+        self._cap        = cap
+        self._frame      = None
+        self._ok         = False
+        self._lock       = threading.Lock()
+        self._stop       = threading.Event()
+        self._has_frame  = threading.Event()   # sinyal: frame pertama sudah siap
+        threading.Thread(target=self._loop, daemon=True).start()
+
+    def _loop(self):
+        while not self._stop.is_set():
+            try:
+                ok, frame = self._cap.read()
+            except Exception as e:
+                print(f"[WARN] Error baca frame dari stream: {e}")
+                with self._lock:
+                    self._ok = False
+                self._has_frame.set()          # bebaskan read() yang sedang menunggu
+                break
+            with self._lock:
+                self._ok, self._frame = ok, frame
+            self._has_frame.set()              # frame pertama sudah ada
+            if not ok:
+                break
+
+    def read(self):
+        # Tunggu frame pertama tersedia — maks 5 detik agar tidak race condition
+        self._has_frame.wait(timeout=5.0)
+        with self._lock:
+            if self._frame is None:
+                return False, None
+            return self._ok, self._frame.copy()
+
+    def isOpened(self): return self._cap.isOpened()
+    def get(self, prop): return self._cap.get(prop)
+
+    def release(self):
+        self._stop.set()
+        self._cap.release()
 
 
 def load_model():
@@ -108,8 +166,8 @@ def draw_overlay(cv2, frame, result, names, fps):
     return frame
 
 
-def run_stream(cv2, model, names, cap, save_path=None):
-    """Loop umum untuk webcam / video. Jika save_path diisi -> rekam output."""
+def run_stream(cv2, model, names, cap, save_path=None, infer_size=640):
+    """Loop umum untuk webcam / video / IP. Jika save_path diisi -> rekam output."""
     if not cap.isOpened():
         print("[ERROR] Tidak bisa membuka sumber video/kamera.")
         return False
@@ -136,9 +194,10 @@ def run_stream(cv2, model, names, cap, save_path=None):
                 print("[INFO] Stream selesai / frame habis.")
                 break
 
-            # Inference
+            # Inference — imgsz fleksibel: 320 jauh lebih cepat di CPU
             results = model.predict(frame, conf=CONF_THRESHOLD,
-                                    iou=IOU_THRESHOLD, verbose=False)
+                                    iou=IOU_THRESHOLD, imgsz=infer_size,
+                                    verbose=False)
             result = results[0]
 
             # Hitung FPS
@@ -163,14 +222,14 @@ def run_stream(cv2, model, names, cap, save_path=None):
     return True
 
 
-def predict_webcam(cv2, model, names, camera_index):
+def predict_webcam(cv2, model, names, camera_index, infer_size=640):
     """Mode webcam real-time."""
     print(f"[INFO] Membuka kamera index {camera_index}...")
     cap = cv2.VideoCapture(camera_index)
-    return run_stream(cv2, model, names, cap, save_path=None)
+    return run_stream(cv2, model, names, cap, save_path=None, infer_size=infer_size)
 
 
-def predict_video(cv2, model, names, source):
+def predict_video(cv2, model, names, source, infer_size=640):
     """Mode video file -> simpan ke runs/predict/output_video.mp4."""
     src = Path(source)
     if not src.exists():
@@ -178,7 +237,30 @@ def predict_video(cv2, model, names, source):
         return False
     cap = cv2.VideoCapture(str(src))
     save_path = PREDICT_DIR / "output_video.mp4"
-    return run_stream(cv2, model, names, cap, save_path=save_path)
+    return run_stream(cv2, model, names, cap, save_path=save_path, infer_size=infer_size)
+
+
+def predict_ip(cv2, model, names, stream_url, infer_size=640):
+    """Mode IP webcam - sambungkan ke kamera HP via URL stream HTTP/RTSP."""
+    print(f"[INFO] Menyambungkan ke stream: {stream_url}")
+    print("[INFO] Pastikan HP dan PC terhubung ke jaringan Wi-Fi yang sama.")
+
+    cap = cv2.VideoCapture(stream_url)
+    # Buffer 1 frame — cegah antrian lama yang bikin FPS palsu rendah
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+    if not cap.isOpened():
+        print(f"[ERROR] Gagal terhubung ke: {stream_url}")
+        print("        Periksa:")
+        print("          1. IP address dan port sudah benar")
+        print("          2. Aplikasi IP Webcam di HP sudah aktif (tap 'Start server')")
+        print("          3. HP dan PC terhubung ke Wi-Fi yang sama")
+        print("          4. Firewall tidak memblokir port tersebut")
+        return False
+
+    # Bungkus dengan threaded reader — loop inferensi tidak pernah tunggu jaringan
+    reader = _ThreadedCapture(cap)
+    return run_stream(cv2, model, names, reader, save_path=None, infer_size=infer_size)
 
 
 def predict_image(cv2, model, names, source):
@@ -235,12 +317,22 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Inference YOLOv8 deteksi_barang (webcam/video/image).")
     parser.add_argument("--mode", required=True,
-                        choices=["webcam", "video", "image"],
-                        help="Mode inference: webcam | video | image")
+                        choices=["webcam", "video", "image", "ip"],
+                        help="Mode inference: webcam | video | image | ip")
     parser.add_argument("--source", default=None,
-                        help="Path file untuk mode video/image.")
+                        help="Path file (video/image) atau URL stream penuh (mode ip).")
     parser.add_argument("--camera", type=int, default=0,
                         help="Index kamera untuk mode webcam (default 0).")
+    parser.add_argument("--ip", default=None,
+                        help="Alamat IP kamera HP, misal: 192.168.1.5 (untuk mode ip).")
+    parser.add_argument("--port", type=int, default=4747,
+                        help="Port server IP webcam (default: 4747).")
+    parser.add_argument("--stream-path", default="/video",
+                        help="Path endpoint stream (default: /video). "
+                             "Contoh: /video, /videofeed, /mjpegfeed.")
+    parser.add_argument("--imgsz", type=int, default=640,
+                        help="Resolusi inference model (default 640). "
+                             "Gunakan 320 untuk CPU agar FPS lebih tinggi.")
     return parser.parse_args()
 
 
@@ -264,15 +356,28 @@ def main():
     if isinstance(names, dict):
         names = [names[k] for k in sorted(names)]
 
-    print(f"[INFO] Mode: {args.mode} | conf={CONF_THRESHOLD} | iou={IOU_THRESHOLD}")
+    print(f"[INFO] Mode: {args.mode} | conf={CONF_THRESHOLD} | iou={IOU_THRESHOLD} | imgsz={args.imgsz}")
 
     if args.mode == "webcam":
-        ok = predict_webcam(cv2, model, names, args.camera)
+        ok = predict_webcam(cv2, model, names, args.camera, args.imgsz)
     elif args.mode == "video":
         if not args.source:
             print("[ERROR] Mode video membutuhkan --source path/ke/video.mp4")
             sys.exit(1)
-        ok = predict_video(cv2, model, names, args.source)
+        ok = predict_video(cv2, model, names, args.source, args.imgsz)
+    elif args.mode == "ip":
+        if args.source:
+            # URL penuh diberikan langsung lewat --source
+            stream_url = args.source
+        elif args.ip:
+            # Bangun URL dari --ip, --port, dan --stream-path
+            stream_url = f"http://{args.ip}:{args.port}{args.stream_path}"
+        else:
+            print("[ERROR] Mode ip membutuhkan --ip ALAMAT_IP atau --source URL_PENUH")
+            print("        Contoh: python predict.py --mode ip --ip 192.168.1.5")
+            sys.exit(1)
+        print(f"[INFO] URL stream: {stream_url}")
+        ok = predict_ip(cv2, model, names, stream_url, args.imgsz)
     else:  # image
         if not args.source:
             print("[ERROR] Mode image membutuhkan --source path/ke/gambar.jpg")
