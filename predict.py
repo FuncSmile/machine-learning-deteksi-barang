@@ -326,7 +326,7 @@ def parse_args():
     parser.add_argument("--ip", default=None,
                         help="Alamat IP kamera HP, misal: 192.168.1.5 (untuk mode ip).")
     parser.add_argument("--port", type=int, default=4747,
-                        help="Port server IP webcam (default: 4747).")
+                        help="Port server IP webcam (default: 8080).")
     parser.add_argument("--stream-path", default="/video",
                         help="Path endpoint stream (default: /video). "
                              "Contoh: /video, /videofeed, /mjpegfeed.")

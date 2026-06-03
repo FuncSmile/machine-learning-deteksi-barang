@@ -24,14 +24,14 @@ import traceback
 BASE_DIR = Path(__file__).resolve().parent
 DATASETS_DIR = BASE_DIR / "datasets"
 DATA_YAML = DATASETS_DIR / "data.yaml"
-PROJECT_DIR = BASE_DIR / "runs" / "train"
-RUN_NAME = "deteksi_barang_v1"
+PROJECT_DIR = BASE_DIR / "runs"
+RUN_NAME = "deteksi-barang-yolov8s"
 SUMMARY_FILE = BASE_DIR / "results_summary.txt"
 
 # === HYPERPARAMETER / KONFIGURASI TRAINING ===
 # Disusun sebagai dict agar mudah dibaca, di-print, dan diubah.
 TRAIN_CONFIG = {
-    "model": "yolov8m.pt",     # medium: balance speed vs accuracy
+    "model": "yolov8s.pt",     # small: sesuai model deteksi-barang-yolov8s
     "imgsz": 640,
     "epochs": 150,
     "patience": 30,            # early stopping

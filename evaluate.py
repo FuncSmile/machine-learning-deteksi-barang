@@ -20,7 +20,7 @@ import traceback
 BASE_DIR = Path(__file__).resolve().parent
 DATASETS_DIR = BASE_DIR / "datasets"
 DATA_YAML = DATASETS_DIR / "data.yaml"
-BEST_MODEL = BASE_DIR / "runs" / "train" / "deteksi_barang_v1" / "weights" / "best.pt"
+BEST_MODEL = BASE_DIR / "runs" / "deteksi-barang-yolov8s" / "weights" / "best.pt"
 EVAL_DIR = BASE_DIR / "runs" / "evaluate"
 REPORT_FILE = BASE_DIR / "evaluation_report.txt"
 
